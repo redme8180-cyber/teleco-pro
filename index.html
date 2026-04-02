@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <title>Telecom Pro Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #0f172a; min-height: 100vh; padding: 10px; margin: 0; color: #333; }
+        .card { background: white; padding: 20px; border-radius: 16px; max-width: 500px; margin: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        h2 { color: #1e40af; text-align: center; margin-top: 0; font-size: 18px; text-transform: uppercase; }
+        #map { height: 200px; width: 100%; border-radius: 12px; margin-bottom: 10px; border: 2px solid #cbd5e1; }
+        #coordsDisplay { text-align: center; font-family: monospace; font-size: 13px; margin-bottom: 10px; color: #1e293b; background: #f1f5f9; padding: 5px; border-radius: 5px; }
+        select, input, button { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box; }
+        .btn-gps { background: #2563eb; color: white; font-weight: bold; border: none; }
+        .btn-main { background: #25d366; color: white; font-weight: bold; border: none; cursor: pointer; }
+        .btn-pdf { background: #be185d; color: white; border: none; margin-top: 5px; }
+        .btn-reset { background: transparent; color: #ef4444; border: 1px solid #ef4444; font-size: 11px; margin-top: 15px; cursor: pointer; }
+        #gpsStatus { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 10px; }
+        #preview { width: 100%; border-radius: 8px; display: none; margin-top: 10px; border: 1px solid #ddd; }
+        .config-zone { font-size: 11px; color: #64748b; text-align: right; margin-bottom: 5px; font-weight: bold; }
+        .version-tag { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 10px; }
+    </style>
+</head>
+<body id="mainBody">
+    <div class="card" id="appCard">
+        <div class="config-zone">Superviseur : <span id="targetPhoneDisplay">...</span></div>
+        <h2>Relevé Télécom Pro</h2>
+        
+        <div id="map"></div>
+        <div id="coordsDisplay">📍 Lat: -- | Lon: --</div>
+        <div id="gpsStatus">GPS en attente...</div>
+        
+        <button class="btn-gps" onclick="getLocation()">🛰️ FIXER POSITION GPS</button>
+
+        <select id="type">
+            <option value="PBO">PBO</option>
+            <option value="CHAMBRE">CHAMBRE</option>
+            <option value="SRO">SRO / ARMOIRE</option>
+            <option value="POTEAU">POTEAU</option>
+        </select>
+        <input type="text" id="idName" placeholder="ID Ouvrage (ex: C12)">
+
+        <input type="file" id="photo" accept="image/*" capture="camera">
+        <img id="preview">
+
+        <button class="btn-main" onclick="saveAndSend()">🚀 ENREGISTRER & WHATSAPP</button>
+        <button class="btn-pdf" onclick="generatePDF()">📄 GÉNÉRER RAPPORT PDF</button>
+        
+        <button class="btn-reset" onclick="resetReport()">🗑️ INITIALISER RAPPORT</button>
+        <div class="version-tag">Build 1.2.0 - Security Active</div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+	// --- CONFIGURATION ---
+const SUPERVISOR_PHONE = "212625093517"; 
+const DATE_EXPIRATION = new Date("2026-04-19"); // <--- Fin du test (Année-Mois-Jour)
+
+// --- SÉCURITÉ : KILL SWITCH ---
+if (new Date() > DATE_EXPIRATION) {
+    document.getElementById('appCard').innerHTML = "<div style='padding:40px; text-align:center;'><h2>⌛ Accès Expiré</h2><p>La période de test est terminée.</p></div>";
+    throw new Error("Expired");
+}
+
+document.getElementById('targetPhoneDisplay').innerText = "+" + SUPERVISOR_PHONE;
+
+// --- GESTION MISE À JOUR (Résistante si GitHub supprimé) ---
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+        reg.update().catch(() => console.log("Mode offline/Serveur absent"));
+        reg.onupdatefound = () => {
+            const worker = reg.installing;
+            worker.onstatechange = () => {
+                if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                    location.reload(); 
+                }
+            };
+        };
+    }).catch(err => console.log("SW Error"));
+}
+
+let currentCoords = null, currentAccuracy = null, map, marker;
+
+// Initialisation Carte
+map = L.map('map').setView([46.60, 2.45], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(map);
+
+function getLocation() {
+    const status = document.getElementById('gpsStatus'), coordsDiv = document.getElementById('coordsDisplay');
+    status.innerHTML = "🛰️ Recherche...";
+    navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude, lon = pos.coords.longitude;
+        currentCoords = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+        currentAccuracy = pos.coords.accuracy.toFixed(1);
+        coordsDiv.innerHTML = `📍 Lat: ${lat.toFixed(6)} | Lon: ${lon.toFixed(6)}`;
+        status.innerHTML = `✅ OK (+/- ${currentAccuracy}m)`;
+        status.style.color = (currentAccuracy <= 10) ? "green" : "orange";
+        const point = [lat, lon];
+        map.setView(point, 18); 
+        if (marker) { marker.setLatLng(point); } else { marker = L.marker(point).addTo(map); }
+    }, () => alert("Activez le GPS"), { enableHighAccuracy: true });
+}
+
+document.getElementById('photo').onchange = e => {
+    const reader = new FileReader();
+    reader.onload = () => { 
+        const img = document.getElementById('preview');
+        img.src = reader.result; img.style.display = "block"; 
+    };
+    if(e.target.files[0]) reader.readAsDataURL(e.target.files[0]);
+};
+
+function saveAndSend() {
+    const type = document.getElementById('type').value, id = document.getElementById('idName').value;
+    if(!currentCoords || !id) return alert("Données manquantes !");
+    const data = JSON.parse(localStorage.getItem('telecom_data') || "[]");
+    data.push({ time: new Date().toLocaleTimeString('fr-FR'), type, id, gps: currentCoords, acc: currentAccuracy });
+    localStorage.setItem('telecom_data', JSON.stringify(data));
+    const mapsLink = `https://www.google.com/maps?q=${currentCoords}`;
+    const text = `*NOUVEAU RELEVÉ*%0A*Type:* ${type}%0A*ID:* ${id}%0A*Précision:* ${currentAccuracy}m%0A*Lien:* ${mapsLink}`;
+    window.open(`https://wa.me/${SUPERVISOR_PHONE}?text=${text}`);
+}
+
+function resetReport() {
+    if(confirm("🚨 EFFACER LE RAPPORT ?")) { localStorage.removeItem('telecom_data'); location.reload(); }
+}
+
+function generatePDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF(), data = JSON.parse(localStorage.getItem('telecom_data') || "[]");
+    if(data.length === 0) return alert("Vide.");
+    doc.text("RAPPORT TÉLÉCOM", 14, 20);
+    const rows = data.map(i => [i.time, i.type, i.id, i.gps, i.acc+'m']);
+    doc.autoTable({ startY: 30, head: [['Heure', 'Type', 'ID', 'GPS', 'Préc.']], body: rows });
+    doc.save("Rapport.pdf");
+}
+	</script>
+</body>
+</html>
