@@ -61,7 +61,8 @@
                 // On vérifie que la variable 'map' du code crypté est initialisée
                 if (typeof map !== 'undefined' && typeof Papa !== 'undefined') {
                     clearInterval(attenteMap);
-                    
+
+                    window.onload = function() {
                     Papa.parse("points.csv", {
                         download: true,
                         header: true,
