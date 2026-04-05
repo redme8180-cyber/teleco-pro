@@ -56,44 +56,50 @@
     </script>
 
     <script>
-    (function() {
-        // On vérifie toutes les secondes si la carte est prête
-        const attenteMap = setInterval(() => {
-            if (typeof map !== 'undefined' && typeof Papa !== 'undefined') {
-                
-                // 1. On arrête de chercher, on a trouvé la map !
-                clearInterval(attenteMap);
+    // 1. On vérifie tout de suite si PapaParse est chargé
+    if (typeof Papa === 'undefined') {
+        alert("ERREUR : La bibliothèque PapaParse n'est pas chargée dans le <head> !");
+    }
 
-                // 2. On lance l'injection du CSV immédiatement
-                Papa.parse("points.csv", {
-                    download: true,
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: function(results) {
-                        console.log("Données reçues :", results.data); // Pour vérifier dans la console
-                        
-                        results.data.forEach(p => {
-                            // Vérifiez bien que dans votre CSV les colonnes s'appellent Lat et Lon
-                            if (p.Lat && p.Lon) {
-                                L.circleMarker([parseFloat(p.Lat), parseFloat(p.Lon)], {
-                                    radius: 7, // Un peu plus grand pour bien les voir
-                                    color: '#1e40af',
-                                    fillColor: '#3b82f6',
-                                    fillOpacity: 0.8,
-                                    weight: 2
-                                })
-                                .addTo(map)
-                                .bindPopup(`<b>Site:</b> ${p.site || p.nom || 'Point'}`);
-                            }
-                        });
-                    },
-                    error: function(err) {
-                        console.error("Erreur lecture CSV:", err);
-                    }
-                });
-            }
-        }, 1000); // Vérification toutes les secondes
-    })();
+    // 2. On lance une boucle qui ne s'arrête que quand la map est trouvée
+    var checkMap = setInterval(function() {
+        if (typeof map !== 'undefined') {
+            clearInterval(checkMap);
+            console.log("Map détectée ! Tentative de lecture du CSV...");
+            
+            // 3. Lecture forcée du CSV
+            Papa.parse("points.csv", {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    // ALERTE DE TEST : Si vous voyez ce message, le fichier est LU !
+                    alert("Succès ! " + results.data.length + " lignes lues dans le CSV.");
+                    
+                    results.data.forEach(function(p) {
+                        // On teste TOUTES les possibilités : Lat, lat, Lon, lng
+                        var latitude = p.Lat || p.lat;
+                        var longitude = p.Lon || p.lng || p.long;
+                        var nom = p.site || p.nom || "Point";
+
+                        if (latitude && longitude) {
+                            // On crée un marqueur ROUGE très visible pour le test
+                            L.circleMarker([parseFloat(latitude), parseFloat(longitude)], {
+                                radius: 10,
+                                color: 'red',
+                                fillColor: 'yellow',
+                                fillOpacity: 0.9,
+                                weight: 3
+                            }).addTo(map).bindPopup("<b>" + nom + "</b>");
+                        }
+                    });
+                },
+                error: function(err) {
+                    alert("ERREUR de lecture CSV : " + err);
+                }
+            });
+        }
+    }, 2000); // On vérifie toutes les 2 secondes
 </script>
 </body>
 </html>
