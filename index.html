@@ -68,7 +68,7 @@
                         skipEmptyLines: true,
                         complete: function(results) {
                             results.data.forEach(p => {
-                                if (p.lat && p.lng) {
+                                if (p.Lat && p.Lon) {
                                     L.circleMarker([parseFloat(p.Lat), parseFloat(p.Lon)], {
                                         radius: 6,
                                         color: '#1e40af',
