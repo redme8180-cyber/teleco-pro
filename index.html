@@ -56,36 +56,44 @@
     </script>
 
     <script>
-        (function() {
-            const attenteMap = setInterval(() => {
-                // On vérifie que la variable 'map' du code crypté est initialisée
-                if (typeof map !== 'undefined' && typeof Papa !== 'undefined') {
-                    clearInterval(attenteMap);
+    (function() {
+        // On vérifie toutes les secondes si la carte est prête
+        const attenteMap = setInterval(() => {
+            if (typeof map !== 'undefined' && typeof Papa !== 'undefined') {
+                
+                // 1. On arrête de chercher, on a trouvé la map !
+                clearInterval(attenteMap);
 
-                    window.onload = function() {
-                    Papa.parse("points.csv", {
-                        download: true,
-                        header: true,
-                        skipEmptyLines: true,
-                        complete: function(results) {
-                            results.data.forEach(p => {
-                                if (p.Lat && p.Lon) {
-                                    L.circleMarker([parseFloat(p.Lat), parseFloat(p.Lon)], {
-                                        radius: 6,
-                                        color: '#1e40af',
-                                        fillColor: '#3b82f6',
-                                        fillOpacity: 0.6,
-                                        weight: 2
-                                    })
-                                    .addTo(map)
-                                    .bindPopup(`<b>Site:</b> ${p.site || p.nom || 'Point'}`);
-                                }
-                            });
-                        }
-                    });
-                }
-            }, 1000);
-        })();
-    </script>
+                // 2. On lance l'injection du CSV immédiatement
+                Papa.parse("points.csv", {
+                    download: true,
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        console.log("Données reçues :", results.data); // Pour vérifier dans la console
+                        
+                        results.data.forEach(p => {
+                            // Vérifiez bien que dans votre CSV les colonnes s'appellent Lat et Lon
+                            if (p.Lat && p.Lon) {
+                                L.circleMarker([parseFloat(p.Lat), parseFloat(p.Lon)], {
+                                    radius: 7, // Un peu plus grand pour bien les voir
+                                    color: '#1e40af',
+                                    fillColor: '#3b82f6',
+                                    fillOpacity: 0.8,
+                                    weight: 2
+                                })
+                                .addTo(map)
+                                .bindPopup(`<b>Site:</b> ${p.site || p.nom || 'Point'}`);
+                            }
+                        });
+                    },
+                    error: function(err) {
+                        console.error("Erreur lecture CSV:", err);
+                    }
+                });
+            }
+        }, 1000); // Vérification toutes les secondes
+    })();
+</script>
 </body>
 </html>
