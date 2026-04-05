@@ -56,50 +56,35 @@
     </script>
 
     <script>
-    // 1. On vérifie tout de suite si PapaParse est chargé
-    if (typeof Papa === 'undefined') {
-        alert("ERREUR : La bibliothèque PapaParse n'est pas chargée dans le <head> !");
-    }
-
-    // 2. On lance une boucle qui ne s'arrête que quand la map est trouvée
-    var checkMap = setInterval(function() {
-        if (typeof map !== 'undefined') {
-            clearInterval(checkMap);
-            console.log("Map détectée ! Tentative de lecture du CSV...");
-            
-            // 3. Lecture forcée du CSV
-            Papa.parse("points.csv", {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    // ALERTE DE TEST : Si vous voyez ce message, le fichier est LU !
-                    alert("Succès ! " + results.data.length + " lignes lues dans le CSV.");
+        (function() {
+            const attenteMap = setInterval(() => {
+                // On vérifie que la variable 'map' du code crypté est initialisée
+                if (typeof map !== 'undefined' && typeof Papa !== 'undefined') {
+                    clearInterval(attenteMap);
                     
-                    results.data.forEach(function(p) {
-                        // On teste TOUTES les possibilités : Lat, lat, Lon, lng
-                        var latitude = p.Lat || p.lat;
-                        var longitude = p.Lon || p.lng || p.long;
-                        var nom = p.site || p.nom || "Point";
-
-                        if (latitude && longitude) {
-                            // On crée un marqueur ROUGE très visible pour le test
-                            L.circleMarker([parseFloat(latitude), parseFloat(longitude)], {
-                                radius: 10,
-                                color: 'red',
-                                fillColor: 'yellow',
-                                fillOpacity: 0.9,
-                                weight: 3
-                            }).addTo(map).bindPopup("<b>" + nom + "</b>");
+                    Papa.parse("points.csv", {
+                        download: true,
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            results.data.forEach(p => {
+                                if (p.lat && p.lng) {
+                                    L.circleMarker([parseFloat(p.lat), parseFloat(p.lng)], {
+                                        radius: 6,
+                                        color: '#1e40af',
+                                        fillColor: '#3b82f6',
+                                        fillOpacity: 0.6,
+                                        weight: 2
+                                    })
+                                    .addTo(map)
+                                    .bindPopup(`<b>Site:</b> ${p.site || p.nom || 'Point'}`);
+                                }
+                            });
                         }
                     });
-                },
-                error: function(err) {
-                    alert("ERREUR de lecture CSV : " + err);
                 }
-            });
-        }
-    }, 2000); // On vérifie toutes les 2 secondes
-</script>
+            }, 1000);
+        })();
+    </script>
 </body>
 </html>

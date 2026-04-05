@@ -1,4 +1,4 @@
-const CACHE_NAME = 'telecom-v1.2.3'; // Nouvelle version pour forcer la mise à jour
+const CACHE_NAME = 'telecom-v1.2.2'; // Nouvelle version pour forcer la mise à jour
 const ASSETS = [
     './',
     './index.html',
