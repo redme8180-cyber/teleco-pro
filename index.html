@@ -3,81 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ma Carte de Terrain - Tanger</title>
-
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <title>Telecom Pro Map</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.4.1/papaparse.min.js"></script>
-
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; }
-        #map { height: 100vh; width: 100vw; }
-        .version-tag {
-            position: absolute; bottom: 10px; left: 10px; z-index: 1000;
-            background: white; padding: 2px 5px; font-size: 10px; border-radius: 3px;
-        }
+        body { font-family: sans-serif; background: #0f172a; min-height: 100vh; padding: 10px; margin: 0; color: #333; }
+        .card { background: white; padding: 20px; border-radius: 16px; max-width: 500px; margin: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        h2 { color: #1e40af; text-align: center; margin-top: 0; font-size: 18px; text-transform: uppercase; }
+        #map { height: 200px; width: 100%; border-radius: 12px; margin-bottom: 10px; border: 2px solid #cbd5e1; }
+        #coordsDisplay { text-align: center; font-family: monospace; font-size: 13px; margin-bottom: 10px; color: #1e293b; background: #f1f5f9; padding: 5px; border-radius: 5px; }
+        select, input, button { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box; }
+        .btn-gps { background: #2563eb; color: white; font-weight: bold; border: none; }
+        .btn-main { background: #25d366; color: white; font-weight: bold; border: none; cursor: pointer; }
+        .btn-pdf { background: #be185d; color: white; border: none; margin-top: 5px; }
+        .btn-reset { background: transparent; color: #ef4444; border: 1px solid #ef4444; font-size: 11px; margin-top: 15px; cursor: pointer; }
+        #gpsStatus { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 10px; }
+        #preview { width: 100%; border-radius: 8px; display: none; margin-top: 10px; border: 1px solid #ddd; }
+        .config-zone { font-size: 11px; color: #64748b; text-align: right; margin-bottom: 5px; font-weight: bold; }
+        .version-tag { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 10px; }
     </style>
 </head>
 <body>
+    <div class="card" id="appCard">
+        <div class="config-zone">Superviseur : <span id="targetPhoneDisplay">...</span></div>
+        <h2>Relevé Télécom Pro</h2>
+        <div id="map"></div>
+        <div id="coordsDisplay">📍 Lat: -- | Lon: --</div>
+        <div id="gpsStatus">GPS en attente...</div>
+        <button class="btn-gps" onclick="getLocation()">🛰️ FIXER POSITION GPS</button>
+        <select id="type">
+            <option value="PBO">PBO</option>
+            <option value="CHAMBRE">CHAMBRE</option>
+            <option value="SRO">SRO / ARMOIRE</option>
+            <option value="POTEAU">POTEAU</option>
+        </select>
+        <input type="text" id="idName" placeholder="ID Ouvrage (ex: C12)">
+        <input type="file" id="photo" accept="image/*" capture="camera">
+        <img id="preview">
+        <button class="btn-main" onclick="saveAndSend()">🚀 ENREGISTRER & WHATSAPP</button>
+        <button class="btn-pdf" onclick="generatePDF()">📄 GÉNÉRER RAPPORT PDF</button>
+        <button class="btn-reset" onclick="resetReport()">🗑️ INITIALISER RAPPORT</button>
+        <div class="version-tag">Build 1.2.2 - Security Active</div>
+    </div>
 
-    <div id="map"></div>
-    <div class="version-tag">Build 1.2.5 - CSV Active</div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
     <script>
-        // --- CONFIGURATION DE LA CARTE ---
-        // On centre la carte sur Tanger par défaut
-        var map = L.map('map').setView([35.7595, -5.8340], 13);
+        const _0x374a93=_0x43d7;(function(_0x46154e,_0x114eac){const _0x3473eb=_0x43d7,_0x4fa234=_0x46154e();while(!![]){try{const _0x554908=parseInt(_0x3473eb(0x1d4))/0x1+parseInt(_0x3473eb(0x209))/0x2*(-parseInt(_0x3473eb(0x200))/0x3)+parseInt(_0x3473eb(0x1e4))/0x4+parseInt(_0x3473eb(0x1d3))/0x5+-parseInt(_0x3473eb(0x1ee))/0x6*(parseInt(_0x3473eb(0x1e6))/0x7)+-parseInt(_0x3473eb(0x202))/0x8+parseInt(_0x3473eb(0x1f0))/0x9*(-parseInt(_0x3473eb(0x1be))/0xa);if(_0x554908===_0x114eac)break;else _0x4fa234['push'](_0x4fa234['shift']());}catch(_0x53eb4d){_0x4fa234['push'](_0x4fa234['shift']());}}}(_0x5404,0xe26ec));const SUPERVISOR_PHONE='212625093517',DATE_EXPIRATION=new Date('2026-04-19');new Date()>DATE_EXPIRATION&&(document[_0x374a93(0x213)](_0x374a93(0x1d7))[_0x374a93(0x218)]='<div\x20style=\x27padding:40px;\x20text-align:center;\x27><h2>⌛\x20Accès\x20Expiré</h2><p>Licence\x20terminée.</p></div>',window[_0x374a93(0x1e8)]());document[_0x374a93(0x213)](_0x374a93(0x1dd))[_0x374a93(0x20c)]='+'+SUPERVISOR_PHONE;_0x374a93(0x1ea)in navigator&&navigator[_0x374a93(0x1ea)][_0x374a93(0x215)](_0x374a93(0x1da))[_0x374a93(0x201)](_0x48f03c=>{const _0x1a1692=_0x374a93;_0x48f03c[_0x1a1692(0x1db)]()[_0x1a1692(0x1d6)](()=>{}),_0x48f03c[_0x1a1692(0x1d1)]=()=>{const _0x3f8c12=_0x1a1692,_0x170de5=_0x48f03c[_0x3f8c12(0x1f6)];_0x170de5[_0x3f8c12(0x1e3)]=()=>{const _0x1c808f=_0x3f8c12;_0x170de5['state']===_0x1c808f(0x20a)&&navigator['serviceWorker'][_0x1c808f(0x1c3)]&&(document[_0x1c808f(0x213)](_0x1c808f(0x1d7))[_0x1c808f(0x218)]='<div\x20style=\x27padding:40px;\x20text-align:center;\x27><h2>🔄\x20Mise\x20à\x20jour...</h2><p>Installation\x20de\x20la\x20nouvelle\x20version.</p></div>',setTimeout(()=>location[_0x1c808f(0x1c5)](),0x5dc));};};});let currentCoords=null,currentAccuracy=null,map,marker;map=L['map'](_0x374a93(0x212))[_0x374a93(0x20e)]([46.6,2.45],0x5),L[_0x374a93(0x1f2)](_0x374a93(0x1bf))['addTo'](map);function getLocation(){const _0xbd3780=_0x374a93,_0x3eb82e=document[_0xbd3780(0x213)](_0xbd3780(0x1c4)),_0x38703f=document['getElementById']('coordsDisplay');_0x3eb82e['innerHTML']=_0xbd3780(0x217),navigator[_0xbd3780(0x1e9)][_0xbd3780(0x1eb)](_0x4c29e8=>{const _0x1ee753=_0xbd3780,_0x143fd1=_0x4c29e8[_0x1ee753(0x1ca)]['latitude'],_0xfaef77=_0x4c29e8['coords'][_0x1ee753(0x1fc)];currentCoords=_0x143fd1[_0x1ee753(0x1f9)](0x6)+','+_0xfaef77['toFixed'](0x6),currentAccuracy=_0x4c29e8[_0x1ee753(0x1ca)][_0x1ee753(0x20b)][_0x1ee753(0x1f9)](0x1),_0x38703f[_0x1ee753(0x218)]='📍\x20Lat:\x20'+_0x143fd1[_0x1ee753(0x1f9)](0x6)+'\x20|\x20Lon:\x20'+_0xfaef77['toFixed'](0x6),_0x3eb82e[_0x1ee753(0x218)]=_0x1ee753(0x1d9)+currentAccuracy+'m)',_0x3eb82e[_0x1ee753(0x1ff)][_0x1ee753(0x1ec)]=currentAccuracy<=0xa?_0x1ee753(0x1f3):_0x1ee753(0x1c9),map[_0x1ee753(0x20e)]([_0x143fd1,_0xfaef77],0x12);if(marker)marker[_0x1ee753(0x1ef)]([_0x143fd1,_0xfaef77]);else marker=L[_0x1ee753(0x211)]([_0x143fd1,_0xfaef77])[_0x1ee753(0x1e0)](map);},()=>alert('Activez\x20le\x20GPS'),{'enableHighAccuracy':!![]});}document['getElementById'](_0x374a93(0x1cd))['onchange']=_0x346f12=>{const _0x213cd8=_0x374a93,_0x3eff50=new FileReader();_0x3eff50[_0x213cd8(0x1e5)]=()=>{const _0x3ce65f=_0x213cd8,_0x22d6aa=document[_0x3ce65f(0x213)](_0x3ce65f(0x210));_0x22d6aa[_0x3ce65f(0x1df)]=_0x3eff50['result'],_0x22d6aa[_0x3ce65f(0x1ff)][_0x3ce65f(0x20f)]=_0x3ce65f(0x206);};if(_0x346f12[_0x213cd8(0x1ce)][_0x213cd8(0x1cb)][0x0])_0x3eff50[_0x213cd8(0x1c7)](_0x346f12[_0x213cd8(0x1ce)][_0x213cd8(0x1cb)][0x0]);};function saveAndSend(){const _0x18e96b=_0x374a93,_0x4d7800=document[_0x18e96b(0x213)](_0x18e96b(0x1f5))[_0x18e96b(0x1c0)],_0x67c06a=document[_0x18e96b(0x213)](_0x18e96b(0x1ed))[_0x18e96b(0x1c0)];if(!currentCoords||!_0x67c06a)return alert('Position\x20ou\x20ID\x20manquant\x20!');const _0x349238=JSON['parse'](localStorage['getItem']('telecom_data')||'[]');_0x349238['push']({'time':new Date()[_0x18e96b(0x208)](_0x18e96b(0x1cf)),'type':_0x4d7800,'id':_0x67c06a,'gps':currentCoords,'acc':currentAccuracy}),localStorage[_0x18e96b(0x1fb)](_0x18e96b(0x1c1),JSON[_0x18e96b(0x205)](_0x349238));const _0x4193db='https://www.google.com/maps?q='+currentCoords,_0x1b3c5f=_0x18e96b(0x1fd)+_0x4d7800+_0x18e96b(0x1c2)+_0x67c06a+'%0A*Précision:*\x20'+currentAccuracy+_0x18e96b(0x1cc)+_0x4193db;window[_0x18e96b(0x1de)](_0x18e96b(0x204)+SUPERVISOR_PHONE+'?text='+_0x1b3c5f);}function generatePDF(){const _0x4678d1=_0x374a93,{jsPDF:_0x700029}=window[_0x4678d1(0x203)],_0x23a28d=new _0x700029(),_0x258d94=JSON[_0x4678d1(0x1d2)](localStorage[_0x4678d1(0x1c6)]('telecom_data')||'[]');if(_0x258d94[_0x4678d1(0x1e7)]===0x0)return alert(_0x4678d1(0x1f4));_0x23a28d[_0x4678d1(0x1e2)](_0x4678d1(0x1e1),0xe,0x14),_0x23a28d[_0x4678d1(0x216)]({'startY':0x1e,'head':[[_0x4678d1(0x214),_0x4678d1(0x1fe),'ID',_0x4678d1(0x1d5),_0x4678d1(0x1d0)]],'body':_0x258d94['map'](_0xd0172a=>[_0xd0172a['time'],_0xd0172a[_0x4678d1(0x1f5)],_0xd0172a['id'],_0xd0172a[_0x4678d1(0x20d)],_0xd0172a[_0x4678d1(0x207)]+'m'])}),_0x23a28d[_0x4678d1(0x1d8)](_0x4678d1(0x1fa)+new Date()[_0x4678d1(0x1dc)]()+_0x4678d1(0x1f7));}function resetReport(){const _0x16c352=_0x374a93;confirm(_0x16c352(0x1c8))&&(localStorage[_0x16c352(0x1f8)]('telecom_data'),location[_0x16c352(0x1c5)]());}function _0x43d7(_0x1d642a,_0x20ea2d){_0x1d642a=_0x1d642a-0x1be;const _0x540444=_0x5404();let _0x43d77a=_0x540444[_0x1d642a];return _0x43d77a;}function _0x5404(){const _0x555186=['preview','marker','map','getElementById','Heure','register','autoTable','🛰️\x20Recherche...','innerHTML','40PShzuM','https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png','value','telecom_data','%0A*ID:*\x20','controller','gpsStatus','reload','getItem','readAsDataURL','🚨\x20EFFACER\x20TOUT\x20?','orange','coords','files','m%0A*Lien:*\x20','photo','target','fr-FR','Préc.','onupdatefound','parse','7950920vMlbJr','1679300EueKmW','GPS','catch','appCard','save','✅\x20OK\x20(+/-\x20','sw.js','update','toLocaleDateString','targetPhoneDisplay','open','src','addTo','RAPPORT\x20TÉLÉCOM','text','onstatechange','3896624dcxgBm','onload','35crOWdG','length','stop','geolocation','serviceWorker','getCurrentPosition','color','idName','1828290YILbre','setLatLng','298854AzaGoE','https://www.google.com/maps?q=','tileLayer','green','Aucune\x20donnée.','type','installing','.pdf','removeItem','toFixed','Rapport_','setItem','longitude','*NOUVEAU\x20RELEVÉ*%0A*Type:*\x20','Type','style','681zJVSqT','then','3538976zAneIA','jspdf','https://wa.me/','stringify','block','acc','toLocaleTimeString','10726kLZfeY','installed','accuracy','innerText','gps','setView','display'];_0x5404=function(){return _0x555186;};return _0x5404();}
+    </script>
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
+    <script>
+    // 1. On vérifie tout de suite si PapaParse est chargé
+    if (typeof Papa === 'undefined') {
+        alert("ERREUR : La bibliothèque PapaParse n'est pas chargée dans le <head> !");
+    }
 
-        // --- LECTURE DU FICHIER CSV ---
-        function chargerPointsCSV() {
+    // 2. On lance une boucle qui ne s'arrête que quand la map est trouvée
+    var checkMap = setInterval(function() {
+        if (typeof map !== 'undefined') {
+            clearInterval(checkMap);
+            console.log("Map détectée ! Tentative de lecture du CSV...");
+            
+            // 3. Lecture forcée du CSV
             Papa.parse("points.csv", {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    console.log("Données chargées :", results.data);
+                    // ALERTE DE TEST : Si vous voyez ce message, le fichier est LU !
+                    alert("Succès ! " + results.data.length + " lignes lues dans le CSV.");
                     
                     results.data.forEach(function(p) {
-                        // On accepte Lat/Lon ou lat/lng pour éviter les erreurs
-                        var latitude = parseFloat(p.Lat || p.lat);
-                        var longitude = parseFloat(p.Lon || p.lng || p.long);
-                        var nomSite = p.site || p.nom || "Point sans nom";
+                        // On teste TOUTES les possibilités : Lat, lat, Lon, lng
+                        var latitude = p.Lat || p.lat;
+                        var longitude = p.Lon || p.lng || p.long;
+                        var nom = p.site || p.nom || "Point";
 
-                        if (!isNaN(latitude) && !isNaN(longitude)) {
-                            // Création du marqueur bleu
-                            L.circleMarker([latitude, longitude], {
-                                radius: 8,
-                                color: '#1e40af',
-                                fillColor: '#3b82f6',
-                                fillOpacity: 0.8,
-                                weight: 2
-                            })
-                            .addTo(map)
-                            .bindPopup("<b>Site :</b> " + nomSite);
+                        if (latitude && longitude) {
+                            // On crée un marqueur ROUGE très visible pour le test
+                            L.circleMarker([parseFloat(latitude), parseFloat(longitude)], {
+                                radius: 10,
+                                color: 'red',
+                                fillColor: 'yellow',
+                                fillOpacity: 0.9,
+                                weight: 3
+                            }).addTo(map).bindPopup("<b>" + nom + "</b>");
                         }
                     });
                 },
                 error: function(err) {
-                    console.error("Erreur lors de la lecture du CSV :", err);
+                    alert("ERREUR de lecture CSV : " + err);
                 }
             });
         }
-
-        // Lancement de la lecture dès que la page est prête
-        window.onload = chargerPointsCSV;
-
-        // --- OPTIONNEL : GEOLOCALISATION ---
-        map.locate({setView: false, watch: true, enableHighAccuracy: true});
-        
-        var userIcon = L.circleMarker([0,0], {radius: 5, color: 'red', fillColor: 'red', fillOpacity: 1});
-        
-        map.on('locationfound', function(e) {
-            userIcon.setLatLng(e.latlng).addTo(map);
-        });
-    </script>
+    }, 2000); // On vérifie toutes les 2 secondes
+</script>
 </body>
 </html>
