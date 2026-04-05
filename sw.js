@@ -1,17 +1,21 @@
-const CACHE_NAME = 'telecom-v1.2.1';
+const CACHE_NAME = 'telecom-v1.2.2'; // Nouvelle version pour forcer la mise à jour
 const ASSETS = [
     './',
     './index.html',
     './manifest.json',
+    './points.csv', // Indispensable pour vos points statiques
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.4.1/papaparse.min.js', // Ajouté pour le CSV
     'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js'
 ];
 
 self.addEventListener('install', e => {
     self.skipWaiting();
-    e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
+    e.waitUntil(
+        caches.open(CACHE_NAME).then(c => c.addAll(ASSETS))
+    );
 });
 
 self.addEventListener('activate', e => {
